@@ -25,8 +25,8 @@ defmodule Ueberauth.Strategy.LinkedIn.OAuth do
   These options are only useful for usage outside the normal callback phase of
   Ueberauth.
   """
-  def client(opts \\ []) do
-    config = Application.get_env(:ueberauth, Ueberauth.Strategy.LinkedIn.OAuth)
+  def client(opts \\ [], otp_app \\ :ueberauth) do
+    config = Application.get_env(otp_app, Ueberauth.Strategy.LinkedIn.OAuth)
 
     opts =
       @defaults
