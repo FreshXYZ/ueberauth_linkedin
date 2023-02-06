@@ -32,7 +32,8 @@ defmodule Ueberauth.Strategy.LinkedIn.OAuth do
       @defaults
       |> Keyword.merge(config)
       |> Keyword.merge(opts)
-      IO.inspect opts
+
+    IO.inspect opts, label: "opts"
 
     json_library = Ueberauth.json_library()
 
