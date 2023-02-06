@@ -27,7 +27,7 @@ defmodule Ueberauth.Strategy.LinkedIn.OAuth do
   """
   def client(opts \\ [], otp_app \\ :ueberauth) do
     config = Application.get_env(otp_app, Ueberauth.Strategy.LinkedIn.OAuth)
-    IO.inspecrt config, label: "config"
+    IO.inspect config, label: "config"
 
     opts =
       @defaults
