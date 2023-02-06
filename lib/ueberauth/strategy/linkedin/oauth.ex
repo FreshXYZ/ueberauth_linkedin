@@ -48,6 +48,7 @@ defmodule Ueberauth.Strategy.LinkedIn.OAuth do
   No need to call this usually.
   """
   def authorize_url!(params \\ [], opts \\ []) do
+    inspect params, label: "params_1"
     opts
     |> client
     # |> put_param(:state, "idos")
@@ -55,6 +56,7 @@ defmodule Ueberauth.Strategy.LinkedIn.OAuth do
   end
 
   def get_token!(params \\ [], opts \\ []) do
+    inspect params, label: "params_4"
     opts
     |> client
     |> OAuth2.Client.get_token!(params)
@@ -68,10 +70,12 @@ defmodule Ueberauth.Strategy.LinkedIn.OAuth do
   # Strategy Callbacks
 
   def authorize_url(client, params) do
+    inspect params, label: "params_2"
     OAuth2.Strategy.AuthCode.authorize_url(client, params)
   end
 
   def get_token(client, params, headers) do
+    inspect params, label: "params_3"
     client
     |> put_param("client_secret", client.client_secret)
     |> put_header("Accept", "application/json")
