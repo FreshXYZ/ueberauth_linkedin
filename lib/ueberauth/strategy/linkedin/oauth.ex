@@ -29,13 +29,14 @@ defmodule Ueberauth.Strategy.LinkedIn.OAuth do
     config = Application.get_env(otp_app, Ueberauth.Strategy.LinkedIn.OAuth)
     IO.inspect otp_app, label: "otp_app"
     IO.inspect config, label: "config"
+    IO.inspect opts, label: "opts"
 
     opts =
       @defaults
       |> Keyword.merge(config)
       |> Keyword.merge(opts)
 
-    IO.inspect opts, label: "opts"
+
 
     json_library = Ueberauth.json_library()
 
