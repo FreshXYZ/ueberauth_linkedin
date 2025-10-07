@@ -31,20 +31,50 @@ defmodule Ueberauth.Strategy.LinkedIn do
   """
   def handle_callback!(%Plug.Conn{params: %{"code" => code}} = conn) do
     opts = [redirect_uri: callback_url(conn)]
+    #  Sometimes LinkdIn token expires very quickly, so we retry up to 3 times
+    handle_callback_with_retry(conn, code, opts, 3)
+  end
 
-    %OAuth2.Client{token: token} =
-      Ueberauth.Strategy.LinkedIn.OAuth.get_token!([code: code], opts)
+  defp handle_callback_with_retry(conn, code, opts, retries_left) when retries_left > 0 do
+    try do
+      %OAuth2.Client{token: token} =
+        Ueberauth.Strategy.LinkedIn.OAuth.get_token!([code: code], opts)
 
-    if token.access_token == nil do
-      token_error = token.other_params["error"]
-      token_error_description = token.other_params["error_description"]
+      if token.access_token == nil do
+        token_error = token.other_params["error"]
+        token_error_description = token.other_params["error_description"]
+        set_errors!(conn, [error(token_error, token_error_description)])
+      else
+        conn_with_user =
+          conn
+          |> fetch_user(token)
+          |> fetch_primary_contact()
 
-      set_errors!(conn, [error(token_error, token_error_description)])
-    else
-      conn
-      |> fetch_user(token)
-      |> fetch_primary_contact()
+        if Map.has_key?(conn_with_user.assigns, :ueberauth_failure) do
+          if retries_left > 1 do
+            # Retry on failure
+            handle_callback_with_retry(conn, code, opts, retries_left - 1)
+          else
+            set_errors!(conn, [error("max_retries", "Maximum retry attempts exceeded")])
+          end
+        else
+          conn_with_user
+        end
+      end
+    rescue
+      error ->
+        if retries_left > 1 do
+          # Add small delay before retry
+          :timer.sleep(1000)
+          handle_callback_with_retry(conn, code, opts, retries_left - 1)
+        else
+          set_errors!(conn, [error("oauth_error", "Failed after 3 attempts: #{inspect(error)}")])
+        end
     end
+  end
+
+  defp handle_callback_with_retry(conn, _code, _opts, 0) do
+    set_errors!(conn, [error("max_retries", "Maximum retry attempts exceeded")])
   end
 
   @doc false
@@ -128,6 +158,9 @@ defmodule Ueberauth.Strategy.LinkedIn do
       when status_code in 200..399 ->
         put_private(conn, :linkedin_user, user)
 
+      {:error, %OAuth2.Response{status_code: 401, body: %{"code" => "REVOKED_ACCESS_TOKEN"}}} ->
+        set_errors!(conn, [error("token", "revoked access token")])
+
       {:error, %OAuth2.Response{status_code: 403, body: body}} ->
         set_errors!(conn, [error("token", body.message)])
 
@@ -151,6 +184,9 @@ defmodule Ueberauth.Strategy.LinkedIn do
       {:ok, %OAuth2.Response{status_code: status_code, body: primary_contact}}
       when status_code in 200..399 ->
         put_private(conn, :linkedin_primary_contact, primary_contact)
+
+      {:error, %OAuth2.Response{status_code: 401, body: %{"code" => "REVOKED_ACCESS_TOKEN"}}} ->
+        set_errors!(conn, [error("token", "revoked access token")])
 
       {:error, %OAuth2.Error{reason: reason}} ->
         set_errors!(conn, [error("OAuth2", reason)])
